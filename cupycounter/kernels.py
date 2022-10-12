@@ -1,7 +1,7 @@
 from cupyx import jit
 
 @jit.rawkernel()
-def init_kernel(table_keys, table_values, keys, size, capacity):
+def _init_kernel(table_keys, table_values, keys, size, capacity):
     tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
 
     if (tid < size):
@@ -19,7 +19,7 @@ def init_kernel(table_keys, table_values, keys, size, capacity):
             h = (h + 1) % capacity
 
 @jit.rawkernel()
-def count_kernel(table_keys, table_values, keys, size, capacity):
+def _count_kernel(table_keys, table_values, keys, size, capacity):
     tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
 
     if (tid < size):
@@ -38,3 +38,22 @@ def count_kernel(table_keys, table_values, keys, size, capacity):
 
             h = (h + 1) % capacity
 
+@jit.rawkernel()
+def _lookup_kernel(table_keys, table_values, keys, counts, size, capacity):
+    tid = jit.blockIdx.x * jit.blockDim.x + jit.threadIdx.x
+
+    if (tid < size):
+        key = keys[tid]
+        h = key % capacity
+
+        exit = False
+        while not exit:
+            cur = table_keys[h]
+
+            if cur == 0xFFFFFFFFFFFFFFFF:
+                exit = True
+            elif cur == key:
+                counts[tid] = table_values[h]
+                exit = True
+
+            h = (h + 1) % capacity
